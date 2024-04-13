@@ -2,7 +2,6 @@ import discord
 import requests
 from discord.ext import commands, tasks
 import math
-import sys
 DISCORD_TOKEN = "Your Token here"
 channel1 = ChannelID1
 channel2 = ChannelID2
