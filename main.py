@@ -120,11 +120,6 @@ async def get_supply(ctx: commands.Context):
         print("Failed to fetch the value.")
     value = (value * 50) / 1000
     await ctx.send(str(value) + "K PLM")
-@bot.hybrid_command()
-async def give_admin(ctx: commands.Context):
-    member = ctx.author
-    await member.kick(reason="Knecht haha")
-    await ctx.send(f"{member.mention} wurde gekickt.")
 
 async def update_diff_channel(channel):
     guild = bot.guilds[0]
