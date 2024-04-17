@@ -222,12 +222,4 @@ async def update_supply_channel(channel):
     await channelS.edit(name="Supply: " + str(new_name) + "K PLM")
     print(f"Supply channel name updated to: {new_name}")
 
-
-async def stop_update(ctx):
-    update_hash_channel.stop()
-    update_height_channel.stop()
-    update_diff_channel.stop()
-    update_supply_channel.stop()
-    await ctx.send("Updating channel names stopped!")
-
 bot.run(DISCORD_TOKEN)
