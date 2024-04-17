@@ -12,19 +12,19 @@ bot = commands.Bot(command_prefix=".", intents=discord.Intents.all())
 @bot.event
 async def on_ready():
     await bot.tree.sync()
-    await update_channel()
-@tasks.loop(minutes = 30)
+    await update_channel.start()
+@tasks.loop(minutes = 15)
 async def update_channel():
     await update_diff_channel(channel1)
     await update_height_channel(channel2)
     await update_hash_channel(channel3)
     await update_supply_channel(channel4)
     await update_member_channel(channel5)
+
 @bot.hybrid_command()
 async def get_diff(ctx: commands.Context):
     url = 'http://explorer.palladium-coin.com/api/getdifficulty'  # Replace this URL with the actual URL you want to fetch the value from
     response = requests.get(url)
-
     # Check if the request was successful
     if response.status_code == 200:
         # Get the value from the response content
@@ -36,9 +36,11 @@ async def get_diff(ctx: commands.Context):
         # Handle the case where the request failed
         print("Failed to fetch the value.")
     await ctx.send(str(value))
+
 @bot.hybrid_command()
 async def ping(ctx: commands.Context):
     await ctx.send("pong")
+
 @bot.hybrid_command()
 async def get_balance(ctx: commands.Context, address: str):
 #    address = "plm1qxun2muvj5wh05um50ysslz4vg7pvvej5hwc8r9"
@@ -57,7 +59,6 @@ async def get_balance(ctx: commands.Context, address: str):
         print(address + " not valid or found!")
         await ctx.send(address + " **not** valid or found!")
 
-
 async def update_member_channel(channel):
     guild = bot.guilds[0]
     channelM = guild.get_channel(channel)
@@ -69,7 +70,6 @@ async def update_member_channel(channel):
 async def get_height(ctx: commands.Context):
     url = 'http://explorer.palladium-coin.com/api/getblockcount'  # Replace this URL with the actual URL you want to fetch the value from
     response = requests.get(url)
-
     # Check if the request was successful
     if response.status_code == 200:
         # Get the value from the response content
@@ -82,10 +82,9 @@ async def get_height(ctx: commands.Context):
         print("Failed to fetch the value.")
     await ctx.send(str(value))
 @bot.hybrid_command()
-async def get_hash(ctx: commands.Context):
+async def get_hashrate(ctx: commands.Context):
     url = 'http://explorer.palladium-coin.com/api/getnetworkhashps'  # Replace this URL with the actual URL you want to fetch the value from
     response = requests.get(url)
-
     # Check if the request was successful
     if response.status_code == 200:
         # Get the value from the response content
@@ -105,16 +104,15 @@ async def get_hash(ctx: commands.Context):
     else:
         value = round(value / pow(10, 6), 1)
         await ctx.send(str(value) + " PH/s")
+
 @bot.hybrid_command()
 async def get_supply(ctx: commands.Context):
     url = 'http://explorer.palladium-coin.com/api/getblockcount'  # Replace this URL with the actual URL you want to fetch the value from
     response = requests.get(url)
-
     # Check if the request was successful
     if response.status_code == 200:
         # Get the value from the response content
         value = float(response.text)
-
         # Output the value
         print("The value is:", value)
     else:
@@ -133,7 +131,6 @@ async def update_diff_channel(channel):
     channelD = guild.get_channel(channel)
     url = 'http://explorer.palladium-coin.com/api/getdifficulty'  # Replace this URL with the actual URL you want to fetch the value from
     response = requests.get(url)
-
     # Check if the request was successful
     if response.status_code == 200:
         # Get the value from the response content
@@ -164,7 +161,6 @@ async def update_height_channel(channel):
     channelHe = guild.get_channel(channel)
     url = 'http://explorer.palladium-coin.com/api/getblockcount'  # Replace this URL with the actual URL you want to fetch the value from
     response = requests.get(url)
-
     # Check if the request was successful
     if response.status_code == 200:
         # Get the value from the response content
@@ -184,7 +180,6 @@ async def update_hash_channel(channel):
     channelHa = guild.get_channel(channel)
     url = 'http://explorer.palladium-coin.com/api/getnetworkhashps'  # Replace this URL with the actual URL you want to fetch the value from
     response = requests.get(url)
-
     # Check if the request was successful
     if response.status_code == 200:
         # Get the value from the response content
@@ -223,7 +218,6 @@ async def update_supply_channel(channel):
     else:
         # Handle the case where the request failed
         print("Failed to fetch the value.")
-
     new_name = (value * 50) / 1000
     await channelS.edit(name="Supply: " + str(new_name) + "K PLM")
     print(f"Supply channel name updated to: {new_name}")
