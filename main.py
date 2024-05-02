@@ -181,12 +181,6 @@ async def update_diff_channel(channel):
         new_name = round(new_name / pow(10, 3), 2)
         await channelD.edit(name="Difficulty: " + str(new_name) + "M")
     print(f"Difficulty channel name updated to: {new_name}")
-@bot.hybrid_command()
-async def shut_down(ctx: commands.Context):
-    member = ctx.author
-    await ctx.send("Shutting down...")
-    print("Bot wurde von "+ str(member)+" heruntergefahren")
-    await bot.close()
 
 async def update_height_channel(channel):
     guild = bot.guilds[0]
