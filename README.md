@@ -117,15 +117,15 @@ Description=Palladium Discord Bot
 After=network.target palladiumd.service
 
 [Service]
-# Replace 'arian' with your actual username
-User=arian
-Group=arian
+# Replace 'username' with your actual username
+User=username
+Group=username
 
 # Path to your project directory
-WorkingDirectory=/home/arian/discord-stats-bot
+WorkingDirectory=/home/username/discord-stats-bot
 
 # Command to start the bot using the venv's python
-ExecStart=/home/arian/discord-stats-bot/bot-env/bin/python3 /home/arian/discord-stats-bot/main.py
+ExecStart=/home/username/discord-stats-bot/bot-env/bin/python3 /home/username/discord-stats-bot/main.py
 
 # Restart policy
 Restart=on-failure
