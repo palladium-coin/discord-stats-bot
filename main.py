@@ -1,26 +1,28 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
 # Palladium Stats Discord Bot
-# 
+#
 # A Discord bot that displays live network statistics from a palladiumd node
 # in Discord channel names and provides blockchain info via slash commands.
-# 
-# Author: Your Name / Your Project
-# GitHub: https://github.com/your-username/your-repository
+#
+# INSTRUCTIONS:
+# 1. Fill in your details in the CONFIGURATION section below.
+# 2. Install dependencies: pip install discord.py python-bitcoinrpc
+# 3. Run the bot: python3 main.py
 # -----------------------------------------------------------------------------
 
 import discord
 from discord.ext import commands, tasks
 from bitcoinrpc.authproxy import AuthServiceProxy, JSONRPCException
+import socket
 
 # --- CONFIGURATION ---
 # IMPORTANT: Fill in your own details below.
 
-# --- Discord Bot Configuration ---
 DISCORD_TOKEN = "YOUR_DISCORD_BOT_TOKEN_HERE"
-GUILD_ID = 123456789012345678 # Right-click your server icon -> Copy Server ID
+GUILD_ID = 123456789012345678  # Right-click your server icon -> Copy Server ID
 
-# --- Channel IDs to be updated ---
+# --- CHANNEL IDs ---
 # Right-click each channel -> Copy Channel ID
 CHANNEL_IDS = {
     "difficulty": 123456789012345678,
@@ -31,8 +33,8 @@ CHANNEL_IDS = {
 }
 MEMBER_ROLE_NAME = "Member"  # The exact, case-sensitive name of the role for the member counter
 
-# --- Palladium RPC Configuration ---
-# These details must match your palladium.conf file.
+# --- PALLADIUM RPC CONFIGURATION ---
+# These details must match your palladium.conf file
 RPC_USER = "your_rpc_username"
 RPC_PASSWORD = "your_rpc_password"
 RPC_HOST = "127.0.0.1"  # Keep this unless the daemon runs on another machine
@@ -44,20 +46,16 @@ intents.members = True
 intents.message_content = True
 bot = commands.Bot(command_prefix=".", intents=intents)
 
-# Establish RPC connection
-try:
-    rpc = AuthServiceProxy(f"http://{RPC_USER}:{RPC_PASSWORD}@{RPC_HOST}:{RPC_PORT}/", timeout=120)
-    # Check if the connection is working by making a simple request
-    rpc.getblockcount() 
-    print("Successfully connected to the Palladium daemon.")
-except Exception as e:
-    print(f"FATAL ERROR: Could not connect to the Palladium daemon. Please check your RPC settings in this script and in palladium.conf. Details: {e}")
-    exit()
-
 # --- HELPER FUNCTIONS ---
 
+def get_rpc_connection():
+    """
+    Establishes a NEW, fresh RPC connection.
+    Called for every task loop and command.
+    """
+    return AuthServiceProxy(f"http://{RPC_USER}:{RPC_PASSWORD}@{RPC_HOST}:{RPC_PORT}/", timeout=30)
+
 def format_hashrate(hps: float) -> str:
-    """Formats hashrate into a human-readable string (GH/s, TH/s, etc.)."""
     ghs = hps / 1e9
     if ghs < 1000:
         return f"{ghs:.2f} GH/s"
@@ -68,7 +66,6 @@ def format_hashrate(hps: float) -> str:
     return f"{phs:.2f} PH/s"
 
 def calculate_supply(height: int) -> float:
-    """Calculates the total coin supply based on block height with halvings."""
     total_supply = 0
     blocks_remaining = height
     reward = 50.0
@@ -86,6 +83,14 @@ def calculate_supply(height: int) -> float:
 @bot.event
 async def on_ready():
     """Called when the bot is successfully connected to Discord."""
+    try:
+        # Test connection on startup
+        get_rpc_connection().getblockcount()
+        print("Successfully connected to the Palladium daemon.")
+    except Exception as e:
+        print(f"FATAL ERROR: Could not connect to Palladium daemon on startup. Check config/daemon. Details: {e}")
+        # We don't exit here, the task will keep retrying.
+    
     try:
         synced = await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
         print(f"Successfully synced {len(synced)} command(s) for guild {GUILD_ID}.")
@@ -108,7 +113,9 @@ async def update_channels_task():
 
     print("Task started: Updating all channels...")
     try:
-        # Fetch all data from the daemon and convert types immediately
+        # Establish a NEW connection every time
+        rpc = get_rpc_connection()
+        
         blockchain_info = rpc.getblockchaininfo()
         network_hash_ps = float(rpc.getnetworkhashps())
         height = blockchain_info['blocks']
@@ -124,9 +131,11 @@ async def update_channels_task():
         
         await update_member_count_channel(guild)
 
-    except JSONRPCException as e:
+    except (JSONRPCException, socket.timeout, ConnectionRefusedError) as e:
+        # Catches RPC errors, timeouts, or connection failures
         print(f"RPC Error during channel update: {e}")
     except Exception as e:
+        # Catches all other errors (e.g., Discord API errors)
         print(f"An unexpected error occurred during channel update: {e}")
     print("Task finished.")
 
@@ -166,13 +175,17 @@ async def update_member_count_channel(guild: discord.Guild):
         await channel.edit(name=new_name)
         print(f"Updated member count to: {member_count}")
 
+
 # --- SLASH COMMANDS ---
 
 @bot.tree.command(name="balance", description="Checks the balance of a Palladium address.", guild=discord.Object(id=GUILD_ID))
 async def balance(interaction: discord.Interaction, address: str):
     await interaction.response.defer() 
     try:
+        # Establish a fresh connection for the command
+        rpc = get_rpc_connection()
         result = rpc.scantxoutset("start", [f"addr({address})"])
+        
         if result['success']:
             value = result['total_amount']
             embed = discord.Embed(title="💰 Balance Check", color=discord.Color.gold())
@@ -181,7 +194,8 @@ async def balance(interaction: discord.Interaction, address: str):
             await interaction.followup.send(embed=embed)
         else:
             await interaction.followup.send(f"❌ The address `{address}` seems to be invalid.")
-    except JSONRPCException:
+            
+    except (JSONRPCException, ConnectionRefusedError):
         await interaction.followup.send(f"❌ The address `{address}` is not valid or was not found.")
     except Exception as e:
         await interaction.followup.send(f"An unexpected error occurred: {e}")
@@ -189,7 +203,10 @@ async def balance(interaction: discord.Interaction, address: str):
 @bot.tree.command(name="peers", description="Shows the number of connected peers.", guild=discord.Object(id=GUILD_ID))
 async def peers(interaction: discord.Interaction):
     try:
+        # Establish a fresh connection for the command
+        rpc = get_rpc_connection()
         peer_info = rpc.getpeerinfo()
+        
         peer_count = len(peer_info)
         embed = discord.Embed(
             title="🌐 Network Connections",
@@ -199,6 +216,7 @@ async def peers(interaction: discord.Interaction):
         await interaction.response.send_message(embed=embed)
     except Exception as e:
         await interaction.response.send_message(f"Error fetching peer information: {e}")
+
 
 # --- START THE BOT ---
 if __name__ == "__main__":
